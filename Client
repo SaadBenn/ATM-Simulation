@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
 
@@ -15,12 +12,14 @@ public class client {
         String cmd = null;               // User input
         String[] splitCmd;        // protocol
         BufferedReader serverInput = null;        // read server response
+        PrintWriter out = null;
 
         System.out.println("Client starting...");
 
         try {
             addr = InetAddress.getByName("owl.cs.umanitoba.ca");
             sock = new Socket(addr, 13346);
+            System.out.println("Socket created in the first try catch");
         } catch (IOException e) {
             System.out.println("Socket creation failed");
             System.exit(1);
@@ -31,6 +30,7 @@ public class client {
             stdin = new BufferedReader(new InputStreamReader(System.in));
             sockStrm = new DataOutputStream(sock.getOutputStream());
             serverInput = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            out = new PrintWriter(sock.getOutputStream(), true);
         } catch (Exception e) {
             System.out.println("Socket output stream failed.");
             System.exit(1);
@@ -40,20 +40,30 @@ public class client {
             // read and send string over the socket until "E" is entered
             try {
                 cmd = stdin.readLine();
-                splitCmd = cmd.split("[<,]");     // remove special characters and split string
+                System.out.println("Command read in the client");
+                splitCmd = cmd.split("[<,>]");     // remove special characters and split string
+                //System.out.println("Printing splitCMd " + splitCmd[0] + " second element " + splitCmd[1]);
                 switch (splitCmd[0]) {
-                    case "C":                         // get a value in the server hash table.
-                        sockStrm.writeChars("C," + splitCmd[1]);
+                    case "C":
+                        out.println("C," + splitCmd[1]);
+                        System.out.println("Server's response is: " + serverInput.readLine());
                         break;
-                    case "R":                         // store value in the hash table.
-                        sockStrm.writeChars("R," + splitCmd[1]);
+                    case "R":
+                        out.println("R," + splitCmd[1]);
+                        System.out.println("Server's response is: " + serverInput.readLine());
                         break;
-                    case "D":                         // change value in the hash table
-                        sockStrm.writeChars("D," + splitCmd[1] + " " + splitCmd[2]);
+                    case "D":
+                        out.println("D," + splitCmd[1] + "," + splitCmd[2]);
+                        System.out.println("Server's response is: " + serverInput.readLine());
                         break;
                     case "W":
-                        sockStrm.writeChars("W," + splitCmd[1] + splitCmd[2]);
-                    case "E":                         // exit client
+                        out.println("W," + splitCmd[1] + "," + splitCmd[2]);
+                        System.out.println("Server's response is: " + serverInput.readLine());
+                        break;
+                    case "E":
+                        System.out.println("Exiting the client"); // exit client
+                        out.println("E");
+                        System.out.println("Server's response is: " + serverInput.readLine());
                         break;
                     default:
                         System.out.println("Unknown command.");
@@ -63,27 +73,18 @@ public class client {
                 System.exit(1);
             }
 
-            // read message from the connection
-            try {
-                String serverResponse = null;
-                while ((serverResponse = serverInput.readLine()) != null)
-                    System.out.println(serverResponse);   // read from server and print it.
-            } catch (Exception e) {
-                System.out.println("Socket input failed");
-                System.exit(1);
-            }
+        } while (!cmd.equals("E"));
 
-            // close streams and socket
-            try {
-                serverInput.close();
-                stdin.close();
-                sockStrm.close();
-                sock.close();
-            } catch (Exception e) {
-                System.out.println("Client couldn't close socket.");
-                System.exit(1);
-            }
-        } while (cmd != "E");
+        // close streams and socket
+        try {
+            serverInput.close();
+            stdin.close();
+            sockStrm.close();
+            sock.close();
+        } catch (Exception e) {
+            System.out.println("Client couldn't close socket.");
+            System.exit(1);
+        }
 
         System.out.println("Client finished");
     } // main method
