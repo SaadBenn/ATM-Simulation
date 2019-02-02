@@ -1,0 +1,228 @@
+import java.io.*;
+import java.net.*;
+import java.util.Hashtable;
+
+public class MyServer1 {
+    private static DatagramSocket serverSock = null;
+
+    public static void main(String args[]) throws IOException {
+        byte[] buf;
+        String t = null;
+        DatagramPacket input = null;
+
+
+        System.out.println("Server starting...");
+
+        // Create Socket
+        try {
+            serverSock = new DatagramSocket(13346);
+
+        } catch (Exception ex) {
+            System.out.println("Creation of server socket failed");
+            System.out.println(ex.getStackTrace());
+            System.exit(1);
+        }
+
+        do {
+            buf = new byte[1024];
+            input = new DatagramPacket(buf, buf.length);
+
+            try {
+                serverSock.receive(input);
+                System.out.println("SERVER: Accepted connection.");
+                t = new String(input.getData());
+                System.out.println("Server received " + t);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            t = t.trim().replaceAll("\n", "");
+            // first time entering "E"
+            if (!t.equals("E")) {
+                new Thread(new MyThread(serverSock, input)).start();
+            }
+        } while (!t.equals("E"));
+
+        buf = "Server shutting down".getBytes();
+        input = new DatagramPacket(buf, buf.length, input.getAddress(), input.getPort());
+        serverSock.send(input);
+        serverSock.close();
+        }
+} // Server
+
+
+class MyThread implements Runnable {
+    String command;
+    DatagramSocket clientSocket = null;
+    DatagramPacket packet;
+
+    private static Hashtable<Integer, Integer> accounts = new Hashtable<>();
+
+    public MyThread(DatagramSocket socket, DatagramPacket packet) {
+        this.clientSocket = socket;
+        this.packet = packet;
+    }
+
+    public void run() {
+        byte[] request = new byte[1024];
+
+        System.out.println("Run method before the loop");
+            try {
+                command = new String(this.packet.getData());
+                command = command.trim().replaceAll("\n", "");
+
+                System.out.println("In the run method of the thread after trimming the string");
+
+                if (command != null && !command.equals("E")) {
+                    System.out.println("Going to call processCommand ");
+                    processCommand(command, packet);
+                }
+            } catch (Exception e) {
+                System.out.println("Socket input failed.");
+                System.exit(1);
+            }
+    } // Run
+
+
+    public synchronized void processCommand(String command, DatagramPacket packet) {
+        String[] toDo = command.split(",");
+        String clientCommand = toDo[0];
+        String accountNum = toDo[1];
+
+        synchronized (MyThread.class) {
+            switch (clientCommand) {
+                case "C":
+                    System.out.println("Before calling create account.");
+                    createAccount(accountNum, packet);
+                    System.out.println("After calling create account.");
+                    break;
+                case "R":
+                    retrieveAccount(accountNum, packet);
+                    break;
+                case "D":
+                    processDeposit(accountNum, Integer.parseInt(toDo[2]), packet);
+                    break;
+                case "W":
+                    processWithdrawl(accountNum, Integer.parseInt(toDo[2]), packet);
+                    break;
+                default:
+                    try {
+                        byte[] buf1 = new byte[1024];
+                        String response = "Invalid command";
+                        buf1 = response.getBytes();
+                        packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                        clientSocket.send(packet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+            }
+        }
+    } // process command
+
+
+    public synchronized void createAccount(String account, DatagramPacket packet) {
+
+        Integer INITIAL_BALANCE = 0;
+        Integer accountNum = Integer.parseInt(account);
+        byte[] buf1;
+
+        try {
+            buf1 = new byte[1024];
+            if (!(accounts.containsKey(accountNum))) {
+                accounts.put(accountNum, INITIAL_BALANCE);
+                String output = "Account: " + accountNum + " created successfully with initial balance of 0";
+                System.out.println(output);
+
+                buf1 = output.getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+
+                clientSocket.send(packet);
+                String s = new String(packet.getData());
+                System.out.println("The response to teh client frmo the sevrer is: " + s);
+
+            } else {
+                buf1 = "Account already exists".getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                clientSocket.send(packet);
+
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    } // create account
+
+
+    public synchronized void retrieveAccount(String account, DatagramPacket packet) {
+        Integer accountNum = Integer.parseInt(account);
+        byte[] buf1;
+
+        try {
+            if (accounts.containsKey(accountNum)) {
+                String out = "Account retrieved " + "Balance is: " + accounts.get(accountNum);
+                buf1 = out.getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                clientSocket.send(packet);
+            } else {
+                buf1 = "Account does not exist".getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                clientSocket.send(packet);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    } // retrieve account
+
+
+    public synchronized void processDeposit(String account, Integer amount, DatagramPacket packet) {
+        Integer accountNum = Integer.parseInt(account);
+        byte[] buf1;
+
+        try {
+            if (accounts.containsKey(accountNum)) {
+                accounts.put(accountNum, accounts.get(accountNum) + amount);
+                String out = "Deposit successful: " + "New balance is: " + accounts.get(accountNum);
+                buf1 = out.getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                clientSocket.send(packet);
+            } else {
+                buf1 = "Deposit Failed: Account does not exist.".getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                clientSocket.send(packet);
+            }
+        } catch (IOException io) {
+            io.printStackTrace();
+        }
+    } // process deposit
+
+
+    public synchronized void processWithdrawl(String account, Integer amount, DatagramPacket packet) {
+        Integer accountNum = Integer.parseInt(account);
+        byte[] buf1;
+
+        try {
+            if (accounts.containsKey(accountNum)) {
+                if (accounts.get(accountNum) >= amount) {
+                    Integer newBalance = ((accounts.get(accountNum)) - amount);
+                    accounts.put(accountNum, newBalance);
+                    String out = "Withdrawl successful " + "New balance is: " + accounts.get(accountNum);
+                    buf1 = out.getBytes();
+                    packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                    clientSocket.send(packet);
+                } else {
+                    buf1 = "Withdrawl Failed: Insufficient balance".getBytes();
+                    packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                    clientSocket.send(packet);
+                }
+            } else {
+                buf1 = "Withdrawl Failed: Account does not exist.".getBytes();
+                packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
+                clientSocket.send(packet);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+} // MyServer
+
+
+
