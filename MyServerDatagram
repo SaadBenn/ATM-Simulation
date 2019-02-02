@@ -23,7 +23,8 @@ public class MyServer1 {
             System.exit(1);
         }
 
-        do {
+        while (true) {
+//        do {
             buf = new byte[1024];
             input = new DatagramPacket(buf, buf.length);
 
@@ -41,12 +42,13 @@ public class MyServer1 {
             if (!t.equals("E")) {
                 new Thread(new MyThread(serverSock, input)).start();
             }
-        } while (!t.equals("E"));
+        }
+//        } while (!t.equals("E"));
 
-        buf = "Server shutting down".getBytes();
-        input = new DatagramPacket(buf, buf.length, input.getAddress(), input.getPort());
-        serverSock.send(input);
-        serverSock.close();
+//        buf = "Server shutting down".getBytes();
+//        input = new DatagramPacket(buf, buf.length, input.getAddress(), input.getPort());
+//        serverSock.send(input);
+//        serverSock.close();
         }
 } // Server
 
@@ -66,15 +68,11 @@ class MyThread implements Runnable {
     public void run() {
         byte[] request = new byte[1024];
 
-        System.out.println("Run method before the loop");
             try {
                 command = new String(this.packet.getData());
                 command = command.trim().replaceAll("\n", "");
 
-                System.out.println("In the run method of the thread after trimming the string");
-
                 if (command != null && !command.equals("E")) {
-                    System.out.println("Going to call processCommand ");
                     processCommand(command, packet);
                 }
             } catch (Exception e) {
@@ -92,9 +90,7 @@ class MyThread implements Runnable {
         synchronized (MyThread.class) {
             switch (clientCommand) {
                 case "C":
-                    System.out.println("Before calling create account.");
                     createAccount(accountNum, packet);
-                    System.out.println("After calling create account.");
                     break;
                 case "R":
                     retrieveAccount(accountNum, packet);
@@ -131,14 +127,12 @@ class MyThread implements Runnable {
             if (!(accounts.containsKey(accountNum))) {
                 accounts.put(accountNum, INITIAL_BALANCE);
                 String output = "Account: " + accountNum + " created successfully with initial balance of 0";
-                System.out.println(output);
 
                 buf1 = output.getBytes();
                 packet = new DatagramPacket(buf1, buf1.length, packet.getAddress(), packet.getPort());
 
                 clientSocket.send(packet);
                 String s = new String(packet.getData());
-                System.out.println("The response to teh client frmo the sevrer is: " + s);
 
             } else {
                 buf1 = "Account already exists".getBytes();
