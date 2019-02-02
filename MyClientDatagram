@@ -1,0 +1,116 @@
+import java.io.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+
+public class MyClient {
+    public static void main(String[] args) {
+
+        DatagramPacket packet;	 // the datagram packet
+        DatagramSocket sock = null;              // client's socket
+        InetAddress addr = null;         // addr of server (local host for now)
+        BufferedReader stdin = null;     // buffered version of instrm
+        String cmd = null;               // User input
+        byte[] buf = new byte[100];
+        String[] splitCmd;        // protocol
+        String clientCommand;
+        DatagramPacket reply;
+        String response;
+
+        System.out.println("Client starting...");
+
+        try {
+            addr = InetAddress.getByName("owl.cs.umanitoba.ca");
+            sock = new DatagramSocket();
+            System.out.println("Socket created in the first try catch");
+        } catch (IOException e) {
+            System.out.println("Socket creation failed");
+            System.exit(1);
+        }
+
+        // set up terminal input and socket output streams
+        try {
+            stdin = new BufferedReader(new InputStreamReader(System.in));
+
+        } catch (Exception e) {
+            System.out.println("Socket output stream failed.");
+            System.exit(1);
+        }
+
+        do {
+            // read and send string over the socket until "E" is entered
+            try {
+                cmd = stdin.readLine();
+                splitCmd = cmd.split("[<,>]");     // remove special characters and split string
+
+                switch (splitCmd[0]) {
+                    case "C":
+                        clientCommand = "C," + splitCmd[1];
+                        packet = new DatagramPacket(clientCommand.getBytes(), (clientCommand).getBytes().length, addr, 13346);
+                        sock.send(packet);
+                        buf = new byte[1024];
+                        reply = new DatagramPacket(buf, buf.length);
+                        sock.receive(reply);
+                        response = new String(reply.getData());
+                        System.out.println("Server's response is: " + response);
+                        break;
+                    case "R":
+                        clientCommand = "R," + splitCmd[1];
+                        packet = new DatagramPacket(clientCommand.getBytes(), (clientCommand).getBytes().length, addr, 13346);
+                        sock.send(packet);
+
+                        buf = new byte[1024];
+                        reply = new DatagramPacket(buf, buf.length);
+                        sock.receive(reply);
+                        response = new String(reply.getData());
+                        System.out.println("Server's response is: " + response);
+                        break;
+                    case "D":
+                        clientCommand = "D," + splitCmd[1] + "," + splitCmd[2];
+                        packet = new DatagramPacket(clientCommand.getBytes(), (clientCommand).getBytes().length, addr, 13346);
+                        sock.send(packet);
+
+                        buf = new byte[1024];
+                        reply = new DatagramPacket(buf, buf.length);
+                        sock.receive(reply);
+                        response = new String(reply.getData());
+                        System.out.println("Server's response is: " + response);
+                        break;
+                    case "W":
+                        clientCommand = "W," + splitCmd[1] + "," + splitCmd[2];
+                        packet = new DatagramPacket(clientCommand.getBytes(), (clientCommand).getBytes().length, addr, 13346);
+                        sock.send(packet);
+
+                        buf = new byte[1024];
+                        reply = new DatagramPacket(buf, buf.length);
+                        sock.receive(reply);
+                        response = new String(reply.getData());
+                        System.out.println("Server's response is: " + response);
+
+                        break;
+                    case "E":
+                        System.out.println("Client closing");
+                        break;
+                    default:
+                        System.out.println("Unknown command.");
+                }
+            } catch (Exception e) {
+                System.out.println("Terminal read or socket output failed");
+                System.exit(1);
+            }
+
+        } while (!cmd.equals("E"));
+
+        // close streams and socket
+        try {
+            stdin.close();
+            sock.close();
+        } catch (Exception e) {
+            System.out.println("Client couldn't close socket.");
+            System.exit(1);
+        }
+
+        System.out.println("Client finished");
+    } // main method
+} // client class
+
